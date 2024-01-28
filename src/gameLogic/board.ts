@@ -64,13 +64,19 @@ export function move<T>(generator: Generator<T>, board: Board<T>, first: Positio
     [board.grid[first.row][first.col], board.grid[second.row][second.col]] =
         [board.grid[second.row][second.col], board.grid[first.row][first.col]];
 
-    // 检查匹配并处理其他相关逻辑
-    // ...
+    // 检查匹配
+    const matches = findMatches(board);
+
+    // 如果有匹配的元素，移除它们
+    if (matches.length > 0) {
+        removeMatches(board, matches);
+        refillBoard(board, generator);
+    }
 
     // 假设处理逻辑完成，返回移动结果
     return {
         board,
-        effects: [] // 实际应该包含匹配和其他效果
+        effects: matches.length > 0 ? [...matches, { kind: "Refill", board }] : []
     };
 }
 
@@ -91,48 +97,67 @@ export function findMatches<T>(board: Board<T>): Match<T>[] {
                     positions.push({ row, col });
                     col++;
                 }
-                matches.push({ matched: matchedElement, positions });
+                if (positions.length >= 3) {
+                    matches.push({ matched: matchedElement, positions });
+                }
             }
         }
     }
 
     // 查找列匹配
-    // 这个逻辑类似于行匹配，但是遍历的方向是垂直方向
+    for (let col = 0; col < board.width; col++) {
+        for (let row = 0; row < board.height; row++) {
+            if (row + 2 < board.height &&
+                board.grid[row][col] === board.grid[row + 1][col] &&
+                board.grid[row][col] === board.grid[row + 2][col]) {
+                const matchedElement = board.grid[row][col];
+                const positions: Position[] = [];
+                while (row < board.height && board.grid[row][col] === matchedElement) {
+                    positions.push({ row, col });
+                    row++;
+                }
+                if (positions.length >= 3) {
+                    matches.push({ matched: matchedElement, positions });
+                }
+            }
+        }
+    }
 
     return matches;
 }
 
 
 // 移除匹配
-// 移除匹配
 export function removeMatches<T>(board: Board<T>, matches: Match<T>[]): void {
     matches.forEach(match => {
         match.positions.forEach(({ row, col }) => {
-            board.grid[row][col] = null as unknown as T; // 将匹配到的元素移除
+            board.grid[row][col] = null as unknown as T; // 将匹配到的元素设置为 null
         });
     });
 }
 
 // 补充游戏板
-// 补充游戏板
 export function refillBoard<T>(board: Board<T>, generator: Generator<T>): void {
+    // 对于每一列
     for (let col = 0; col < board.width; col++) {
-        let emptyRow = -1; // 记录第一个空位置
+        // 从底部向上检查
         for (let row = board.height - 1; row >= 0; row--) {
+            // 如果当前位置为空，则需要补充
             if (board.grid[row][col] === null) {
-                emptyRow = row;
-            } else if (emptyRow !== -1) {
-                // 将当前元素下移
-                board.grid[emptyRow][col] = board.grid[row][col];
-                board.grid[row][col] = null as unknown as T;
-                emptyRow--;
+                // 从当前位置向上找到第一个非空位置
+                let nonNullRow = row - 1;
+                while (nonNullRow >= 0 && board.grid[nonNullRow][col] === null) {
+                    nonNullRow--;
+                }
+                // 如果找到了非空位置，则将其下移
+                if (nonNullRow >= 0) {
+                    board.grid[row][col] = board.grid[nonNullRow][col];
+                    board.grid[nonNullRow][col] = null as unknown as T;
+                } else {
+                    // 如果没有找到非空位置，则从顶部生成新元素
+                    board.grid[row][col] = generator.next();
+                }
             }
-        }
-
-        // 在顶部补充新元素
-        for (let row = emptyRow; row >= 0; row--) {
-            board.grid[row][col] = generator.next();
         }
     }
 }
-

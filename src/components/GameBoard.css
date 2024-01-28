@@ -1,0 +1,23 @@
+/* GameBoard.css */
+.game-board {
+    display: grid;
+    grid-template-columns: repeat(4, 60px); /* 4 列，每列宽度为60px */
+    justify-content: center;
+    grid-gap: 5px; /* 网格行间距和列间距为5px */
+}
+
+.game-cell {
+    width: 60px; /* 单元格宽度 */
+    height: 60px; /* 单元格高度 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ddd; /* 单元格边框 */
+    cursor: pointer;
+    user-select: none; /* 防止文本被选中 */
+    background: #fff; /* 背景颜色 */
+}
+
+.game-cell.selected {
+    background-color: #add8e6; /* 高亮背景色 */
+}
