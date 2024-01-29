@@ -1,34 +1,50 @@
-// src/App.tsx
 import React, { useState, useCallback, useEffect } from 'react';
 import { GameBoard } from './components/GameBoard';
 import { create } from './gameLogic/board';
 import { Model } from './gameLogic/model';
 import { Controller } from './gameLogic/controller';
 import { SequenceGenerator } from './gameLogic/SequenceGenerator';
+import UserService from './services/UserService';
+
+type HighScore = {
+    username: string;
+    score: number;
+};
 
 function App() {
     const [model, setModel] = useState(new Model(create(SequenceGenerator, 3, 4), SequenceGenerator));
     const [controller] = useState(new Controller(model));
-
-    // 添加两个新状态来跟踪分数和步数
     const [score, setScore] = useState(model.getScore());
     const [moves, setMoves] = useState(model.getMoves());
+    const [highScores, setHighScores] = useState<HighScore[]>([]);
+
+    const userService = new UserService();
 
     useEffect(() => {
         const observer = (updatedModel: Model<string>) => {
-            // 更新分数和步数状态
             setScore(updatedModel.getScore());
             setMoves(updatedModel.getMoves());
+
+            if (updatedModel.getMoves() >= updatedModel.getMaxMoves()) {
+                // 游戏结束，提交分数并获取高分榜
+                const userId = localStorage.getItem('userId');
+                const token = localStorage.getItem('token');
+                if (userId && token) {
+                    userService.submitScore(userId, updatedModel.getScore(), token)
+                        .then(() => userService.getHighScores(token))
+                        .then(scores => setHighScores(scores))
+                        .catch(error => console.error("Error:", error));
+                }
+            }
         };
         model.addObserver(observer);
         return () => model.removeObserver(observer);
-    }, [model]);
+    }, [model, userService]);
 
     const resetGame = useCallback(() => {
         const newModel = new Model(create(SequenceGenerator, 3, 4), SequenceGenerator);
         setModel(newModel);
         controller.setModel(newModel);
-        // 重置游戏时也重置分数和步数
         setScore(newModel.getScore());
         setMoves(newModel.getMoves());
     }, [controller]);
@@ -43,6 +59,14 @@ function App() {
             <GameBoard model={model} controller={controller} />
             <div style={{ textAlign: 'center', marginTop: '20px' }}>
                 <button onClick={resetGame}>Reset Game</button>
+            </div>
+            <div className="high-scores">
+                <h2>High Scores</h2>
+                <ul>
+                    {highScores.map((score, index) => (
+                        <li key={index}>{score.username}: {score.score}</li>
+                    ))}
+                </ul>
             </div>
         </div>
     );

@@ -10,6 +10,7 @@ import {
     refillBoard,
     create
 } from './board';
+import UserService from "../services/UserService";
 
 export class Model<T> {
     private observers: Set<((model: Model<T>) => void)>;
@@ -122,9 +123,9 @@ export class Model<T> {
             this._board = moveResult.board;
             this.notifyObservers();
 
+            // 检查游戏是否结束
             if (this._moves >= this.maxMoves) {
-                this.addMessage('Game Over!');
-                // 可以添加更多结束游戏的逻辑
+                this.endGame(); // 调用游戏结束逻辑
             }
         }
     }
@@ -141,6 +142,20 @@ export class Model<T> {
 
     get selection(): Position[] {
         return [...this.selected];
+    }
+
+    endGame() {
+        this.addMessage('Game Over!');
+        const userId = localStorage.getItem('userId');
+        const token = localStorage.getItem('token');
+        if (userId && token) {
+            const userService = new UserService();
+            console.log(`Submitting score: userId=${userId}, score=${this._score}, token=${token}`);
+            userService.submitScore(userId, this._score, token)
+                .then((response) => console.log("Score submitted response:", response))
+                .catch(error => console.error("Error submitting score:", error));
+        }
+        alert("游戏结束！您的得分是：" + this._score);
     }
 
     // 重置游戏状态
